@@ -1,0 +1,109 @@
+# ---- queries
+
+query GetFirstPR {
+  repository(owner: "phaazon", name: "this-week-in-neovim-contents") {
+    pullRequests(first: 1, states: [OPEN]) {
+      edges {
+        # use cursor for 'after' directive for later query
+        cursor
+        node {
+          id
+          title
+          headRef {
+            name
+            target {
+              oid
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+query GetAllPRs(
+  $cursor: String!,
+) {
+  repository(owner: "phaazon", name: "this-week-in-neovim-contents") {
+    pullRequests(after: $cursor, first: 40) {
+      edges {
+        node {
+          files(first: 5) {
+            edges {
+              node {
+                path
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+# ---- mutations
+
+# create a new branch first (in fork)
+mutation CreateBranch(
+  $name: String!,
+  $baseRef: GitObjectID!,
+  $repoId: ID!,
+) {
+  createRef(input:{
+    name: $name,
+    oid: $baseRef,
+    repositoryId: $repoId,
+  }) { ref }
+}
+
+
+# create a new commit with proper file content
+mutation CreateCommit(
+  $repoName: String!,
+  $branchName: String!,
+  $head: GitObjectID!,
+  $commitMsg: String!,
+  $filePath: String!,
+  $contents: Base64String!,
+) {
+  createCommitOnBranch(input:{
+    branch:{
+      repositoryNameWithOwner: $repoName,
+      branchName: $branchName,
+    },
+    expectedHeadOid: $head,
+    message:{
+      headline: $commitMsg,
+    }
+    fileChanges:{
+      additions: [
+        {
+          path: $filePath,
+          contents: $contents,
+        }
+      ]
+    },
+  })
+}
+
+# create a new PR from fork to upstream
+mutation CreatePR(
+  $title: String!,
+  $repoId: ID!,
+  $headRef: String!,
+  $baseRef: String!,
+  $body: String!,
+) {
+  createPullRequest(input:{
+    title: $title,
+    repositoryId: $repoId,
+    headRefName: $headRef,
+    baseRefName: $baseRef,
+    body: $body,
+  }) {
+    pullRequest {
+      id
+      url
+    }
+  }
+}
