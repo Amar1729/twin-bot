@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "twin-bot"
+version = "0.1.0"
+description = ""
+authors = ["Amar1729 <amar.paul16@gmail.com>"]
+readme = "README.md"
+packages = [{include = "twin_bot"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+praw = "^7.6.1"
+sgqlc = "^16.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ipython = "^8.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
