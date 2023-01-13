@@ -44,6 +44,73 @@ def repo_query() -> Tuple[str, List[PullRequestEdge]]:
     return title, prs
 
 
+def sync_twin_branch() -> str:
+    """Sync branches from upstream.
+
+    Returns:
+        The ID of the non-master (i.e. this week's TWiN) branch.
+    """
+    get_refs = Operations.query.get_refs
+
+    # get refs from upstream
+    data_upstream = ENDPOINT(get_refs, {"owner": "phaazon"})
+    repo_upstream = (get_refs + data_upstream).repository
+
+    # "sort" this so the "master" ref gets inserted into this dict first
+    refs_upstream = {
+        ref.node.name: ref.node.target.oid
+        for ref in repo_upstream.refs.edges
+        if ref.node.name == "master"
+    }
+
+    for ref in repo_upstream.refs.edges:
+        if ref.node.name != "master":
+            refs_upstream[ref.node.name] = ref.node.target.oid
+
+    # get node IDs from my fork
+    data_fork = ENDPOINT(get_refs, {"owner": "amar1729"})
+    repo_fork = (get_refs + data_fork).repository
+
+    refs_fork = {
+        # note: .id not .target.oid
+        ref.node.name: ref.node.id
+        for ref in repo_fork.refs.edges
+    }
+
+    # assume that upstream only has 'master' and this week's branch
+    # so only update those refs
+    # NOTE: this should update the master ref first, and then other refs
+    # (since refs_upstream should have 'master' ref first due to insertion order)
+    push_branch = Operations.mutation.sync_upstream
+    create_branch = Operations.mutation.create_branch
+    for ref_name, ref_target in refs_upstream.items():
+        if ref_name not in refs_fork:
+            # create ref (branch) if it doesn't exist in my fork
+            data = ENDPOINT(
+                create_branch,
+                {
+                    "name": f"refs/heads/{ref_name}",
+                    "baseRef": refs_upstream["master"],
+                    "repoId": repo_fork.id,
+                }
+            )
+
+            ref = data["data"]["createRef"]["ref"]["id"]
+            refs_fork[ref_name] = ref
+
+        ENDPOINT(
+            push_branch,
+            {"refId": refs_fork[ref_name], "oid": ref_target},
+        )
+
+    # return the ID of the only non-master branch in our fork (after we sync from upstream)
+    for ref_name in refs_upstream:
+        if ref_name != "master":
+            return refs_fork[ref_name]
+
+    raise Exception("non-master branch not found in upstream.")
+
+
 if __name__ == "__main__":
     q = repo_query()
     print(q)

@@ -1,5 +1,25 @@
 # ---- queries
 
+# get the current refs from upstream repo
+query GetRefs(
+  $owner: String!,
+) { 
+  repository(owner: $owner, name: "this-week-in-neovim-contents") {
+    id
+    refs(refPrefix: "refs/heads/", last: 3) {
+      edges {
+        node {
+          id
+          name
+          target {
+            oid
+          }
+        }
+      }
+    }
+  }
+}
+
 query GetFirstPR {
   repository(owner: "phaazon", name: "this-week-in-neovim-contents") {
     pullRequests(first: 1, states: [OPEN]) {
@@ -43,6 +63,17 @@ query GetAllPRs(
 
 # ---- mutations
 
+# sync refs from upstream
+mutation SyncUpstream(
+  $refId: ID!,
+  $oid: GitObjectID!
+) {
+  updateRef(input: {
+    refId: $refId,
+    oid: $oid,
+  })
+}
+
 # create a new branch first (in fork)
 mutation CreateBranch(
   $name: String!,
@@ -53,7 +84,11 @@ mutation CreateBranch(
     name: $name,
     oid: $baseRef,
     repositoryId: $repoId,
-  }) { ref }
+  }) {
+    ref {
+      id
+    }
+  }
 }
 
 

@@ -8,10 +8,17 @@ _schema_root = _schema.schema
 __all__ = ('Operations',)
 
 
+def mutation_sync_upstream():
+    _op = sgqlc.operation.Operation(_schema_root.mutation_type, name='SyncUpstream', variables=dict(refId=sgqlc.types.Arg(sgqlc.types.non_null(_schema.ID)), oid=sgqlc.types.Arg(sgqlc.types.non_null(_schema.GitObjectID))))
+    _op.update_ref(input={'refId': sgqlc.types.Variable('refId'), 'oid': sgqlc.types.Variable('oid')})
+    return _op
+
+
 def mutation_create_branch():
     _op = sgqlc.operation.Operation(_schema_root.mutation_type, name='CreateBranch', variables=dict(name=sgqlc.types.Arg(sgqlc.types.non_null(_schema.String)), baseRef=sgqlc.types.Arg(sgqlc.types.non_null(_schema.GitObjectID)), repoId=sgqlc.types.Arg(sgqlc.types.non_null(_schema.ID))))
     _op_create_ref = _op.create_ref(input={'name': sgqlc.types.Variable('name'), 'oid': sgqlc.types.Variable('baseRef'), 'repositoryId': sgqlc.types.Variable('repoId')})
-    _op_create_ref.ref()
+    _op_create_ref_ref = _op_create_ref.ref()
+    _op_create_ref_ref.id()
     return _op
 
 
@@ -34,6 +41,21 @@ class Mutation:
     create_branch = mutation_create_branch()
     create_commit = mutation_create_commit()
     create_pr = mutation_create_pr()
+    sync_upstream = mutation_sync_upstream()
+
+
+def query_get_refs():
+    _op = sgqlc.operation.Operation(_schema_root.query_type, name='GetRefs', variables=dict(owner=sgqlc.types.Arg(sgqlc.types.non_null(_schema.String))))
+    _op_repository = _op.repository(owner=sgqlc.types.Variable('owner'), name='this-week-in-neovim-contents')
+    _op_repository.id()
+    _op_repository_refs = _op_repository.refs(ref_prefix='refs/heads/', last=3)
+    _op_repository_refs_edges = _op_repository_refs.edges()
+    _op_repository_refs_edges_node = _op_repository_refs_edges.node()
+    _op_repository_refs_edges_node.id()
+    _op_repository_refs_edges_node.name()
+    _op_repository_refs_edges_node_target = _op_repository_refs_edges_node.target()
+    _op_repository_refs_edges_node_target.oid()
+    return _op
 
 
 def query_get_first_pr():
@@ -68,6 +90,7 @@ def query_get_all_prs():
 class Query:
     get_all_prs = query_get_all_prs()
     get_first_pr = query_get_first_pr()
+    get_refs = query_get_refs()
 
 
 class Operations:
